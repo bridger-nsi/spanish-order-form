@@ -379,32 +379,48 @@
     if(edging) lines.push('Borde de Acero 4"x10\': '+edging+' pies lineales');
     if(staples)lines.push('Cajas de Grapas 6": '+staples+' caja(s)');
 
-    var now=new Date().toLocaleString('es-MX',{dateStyle:'full',timeStyle:'short'});
     var df=new Date(ddate+'T00:00:00').toLocaleDateString('es-MX',{dateStyle:'long'});
+    var now=new Date().toLocaleString('es-MX',{dateStyle:'full',timeStyle:'short'});
 
-    var subj=encodeURIComponent('Nuevo Pedido — '+company+' — PO: '+po);
-    var body=encodeURIComponent(
-      'NUEVO PEDIDO — NORTH SLOPE INDUSTRIES\n'+
-      'Fecha de pedido: '+now+'\n\n'+
-      'CLIENTE\n'+
-      'Empresa: '+company+'\n'+
-      'Contacto: '+contact+'\n'+
-      'PO / Referencia: '+po+'\n'+
-      'Dirección de entrega: '+address+'\n'+
-      'Fecha de entrega requerida: '+df+'\n\n'+
-      'PRODUCTOS SOLICITADOS\n'+
-      lines.join('\n')+
-      (notes?'\n\nNOTAS ADICIONALES\n'+notes:'')+
-      '\n\n---\nPedido enviado desde el formulario en línea de North Slope Industries.'
-    );
+    var btn=document.querySelector('.submit-btn');
+    btn.disabled=true;
+    btn.textContent='Enviando...';
 
-    window.location.href='mailto:sales@northslopeindustries.com?subject='+subj+'&body='+body;
+    var payload={
+      'Empresa':              company,
+      'Contacto':             contact,
+      'PO / Referencia':      po,
+      'Direccion de Entrega': address,
+      'Fecha de Entrega':     df,
+      'Fecha de Pedido':      now,
+      '_subject':             'Nuevo Pedido - '+company+' - PO: '+po,
+      'Productos':            lines.join(' | '),
+      'Notas':                notes||'—'
+    };
 
-    setTimeout(function(){
-      document.getElementById('form-view').style.display='none';
-      document.getElementById('success-view').style.display='block';
-      window.scrollTo({top:0,behavior:'smooth'});
-    },800);
+    fetch('https://formspree.io/f/xgobvvar',{
+      method:'POST',
+      headers:{'Accept':'application/json','Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    })
+    .then(function(res){
+      if(res.ok){
+        document.getElementById('form-view').style.display='none';
+        document.getElementById('success-view').style.display='block';
+        window.scrollTo({top:0,behavior:'smooth'});
+      } else {
+        errEl.style.display='block';
+        errEl.textContent='\u26a0  Error al enviar. Por favor intente de nuevo o llámenos al 385-437-6527.';
+        btn.disabled=false;
+        btn.textContent='Enviar Pedido \u2192';
+      }
+    })
+    .catch(function(){
+      errEl.style.display='block';
+      errEl.textContent='\u26a0  Error de conexión. Verifique su internet e intente de nuevo.';
+      btn.disabled=false;
+      btn.textContent='Enviar Pedido \u2192';
+    });
   }
 
   function resetForm() {
