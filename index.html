@@ -91,6 +91,20 @@
   .field input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,174,239,0.12); }
   .field input::placeholder { color: var(--mid-gray); }
 
+  .field select {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 4px;
+    font-family: 'Barlow', sans-serif; font-size: 15px;
+    color: var(--navy); background: var(--white);
+    transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230D2338' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+  }
+  .field select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,174,239,0.12); }
+
   .cyan-rule { height: 2px; background: var(--cyan); }
 
   .products-table { width: 100%; border-collapse: collapse; }
@@ -244,9 +258,22 @@
             <label>Dirección de Entrega <span class="req">*</span></label>
             <input type="text" id="address" placeholder="Calle, ciudad, estado, código postal" />
           </div>
-          <div class="field field-full">
+          <div class="field">
+            <label>Teléfono de Contacto <span class="req">*</span></label>
+            <input type="tel" id="phone" placeholder="Ej. (801) 555-1234" />
+          </div>
+          <div class="field">
             <label>Fecha de Entrega Requerida <span class="req">*</span></label>
             <input type="date" id="delivery-date" />
+          </div>
+          <div class="field field-full">
+            <label>Horario de Entrega Preferido <span class="req">*</span></label>
+            <select id="delivery-time">
+              <option value="" disabled selected>Seleccione un horario...</option>
+              <option value="AM">AM (Mañana)</option>
+              <option value="PM">PM (Tarde)</option>
+              <option value="Cualquier hora">Cualquier hora</option>
+            </select>
           </div>
         </div>
       </div>
@@ -355,7 +382,10 @@
     var edging=gv('edging'), staples=gv('staples');
     var total=wb3+wb4+wb5+wb6+wb8+wb12+edging+staples;
 
-    if (!company||!contact||!po||!address||!ddate) {
+    var phone = document.getElementById('phone').value.trim();
+    var dtime = document.getElementById('delivery-time').value;
+
+    if (!company||!contact||!phone||!po||!address||!ddate||!dtime) {
       errEl.style.display='block';
       errEl.textContent='⚠  Por favor complete todos los campos requeridos (marcados con *).';
       errEl.scrollIntoView({behavior:'smooth',block:'center'});
@@ -392,7 +422,9 @@
       'PO / Referencia':      po,
       'Direccion de Entrega': address,
       'Fecha de Entrega':     df,
+      'Telefono':             phone,
       'Fecha de Pedido':      now,
+      'Horario de Entrega':   dtime,
       '_subject':             'Nuevo Pedido - '+company+' - PO: '+po,
       'Productos':            lines.join(' | '),
       'Notas':                notes||'—'
@@ -424,7 +456,8 @@
   }
 
   function resetForm() {
-    ['company','contact','po','address','notes'].forEach(function(id){ document.getElementById(id).value=''; });
+    ['company','contact','phone','po','address','notes'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('delivery-time').value='';
     document.getElementById('delivery-date').value='';
     ['wb3','wb4','wb5','wb6','wb8','wb12','edging','staples'].forEach(function(id){ document.getElementById(id).value=0; });
     document.getElementById('success-view').style.display='none';
