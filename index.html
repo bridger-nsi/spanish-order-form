@@ -516,6 +516,10 @@
     ['wb3','wb4','wb5','wb6','wb8','wb12','edging','staples'].forEach(function(id){ document.getElementById(id).value=0; });
     document.getElementById('success-view').style.display='none';
     document.getElementById('send-fail').style.display='none';
+    // Re-enable the submit button (it stays disabled after a successful send)
+    var btn=document.querySelector('.submit-btn');
+    btn.disabled=false;
+    btn.textContent='Enviar Pedido →';
     document.getElementById('form-view').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }
