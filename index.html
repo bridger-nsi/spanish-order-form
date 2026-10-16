@@ -170,6 +170,27 @@
     font-weight: 600; color: var(--alert-red); margin: 0 24px 16px;
   }
 
+  /* Shown when Formspree does not confirm receipt: order was NOT sent */
+  .send-fail {
+    display: none; background: #fff5f5; border: 2px solid var(--alert-red);
+    border-radius: 4px; padding: 18px 16px; margin: 0 24px 16px; text-align: center;
+  }
+  .send-fail h3 {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+    font-size: 24px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--alert-red); margin-bottom: 8px;
+  }
+  .send-fail p { color: var(--navy); font-size: 15px; line-height: 1.5; margin-bottom: 14px; }
+  .send-fail .fail-reason { font-size: 13px; color: var(--body-gray); margin-bottom: 14px; }
+  .fail-btn {
+    display: block; width: 100%; padding: 14px; margin-bottom: 10px;
+    border-radius: 4px; text-decoration: none;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: 19px; letter-spacing: 1px;
+  }
+  .fail-btn.call  { background: var(--navy); color: var(--white); }
+  .fail-btn.email { background: var(--white); color: var(--navy); border: 2px solid var(--navy); font-size: 16px; letter-spacing: 0; overflow-wrap: anywhere; }
+
   .submit-area { padding: 20px 24px 28px; }
   .submit-btn {
     width: 100%; padding: 16px; background: var(--cyan); color: var(--navy);
@@ -216,6 +237,7 @@
     .notes-wrap { padding: 16px; }
     .submit-area { padding: 16px 16px 24px; }
     .error-msg { margin: 0 16px 12px; }
+    .send-fail { margin: 0 16px 12px; }
     .prod-cell-qty { width: 125px; }
     .qty-input { width: 42px; }
   }
@@ -337,6 +359,15 @@
 
       <div class="error-msg" id="error-msg"></div>
 
+      <div class="send-fail" id="send-fail" role="alert">
+        <h3>⚠ Su pedido NO fue enviado</h3>
+        <p>No pudimos confirmar que recibimos su pedido. Por favor llámenos o envíenos un correo para hacer su pedido.</p>
+        <p class="fail-reason" id="fail-reason"></p>
+        <a class="fail-btn call" href="tel:+13854376527">📞 Llamar: 385-437-6527</a>
+        <a class="fail-btn email" id="fail-email" href="mailto:sales@northslopeindustries.com">✉ sales@northslopeindustries.com</a>
+        <p class="fail-reason">Sus datos siguen en el formulario. También puede intentar enviarlo de nuevo.</p>
+      </div>
+
       <div class="submit-area">
         <button class="submit-btn" onclick="submitOrder()">Enviar Pedido →</button>
         <p class="submit-note">Su pedido será enviado por correo electrónico para su procesamiento.</p>
@@ -430,28 +461,51 @@
       'Notas':                notes||'—'
     };
 
+    var failEl=document.getElementById('send-fail');
+    failEl.style.display='none';
+
+    // Pre-fill the fallback email with the order so the customer can send it in one tap
+    var mailBody='Empresa: '+company+'\nContacto: '+contact+'\nTeléfono: '+phone+
+      '\nPO / Referencia: '+po+'\nDirección de entrega: '+address+
+      '\nFecha de entrega: '+df+'\nHorario de entrega: '+dtime+
+      '\n\nProductos:\n'+lines.join('\n')+'\n\nNotas: '+(notes||'—');
+    document.getElementById('fail-email').href='mailto:sales@northslopeindustries.com'+
+      '?subject='+encodeURIComponent(payload['_subject'])+'&body='+encodeURIComponent(mailBody);
+
+    function showFail(reason){
+      document.getElementById('fail-reason').textContent=reason;
+      failEl.style.display='block';
+      failEl.scrollIntoView({behavior:'smooth',block:'center'});
+      btn.disabled=false;
+      btn.textContent='Enviar Pedido →';
+    }
+
+    // Give up after 20s so a weak phone signal can't leave the customer stuck on "Enviando..."
+    var ctrl=window.AbortController?new AbortController():null;
+    var timer=ctrl?setTimeout(function(){ ctrl.abort(); },20000):null;
+
     fetch('https://formspree.io/f/xgobvvar',{
       method:'POST',
       headers:{'Accept':'application/json','Content-Type':'application/json'},
-      body:JSON.stringify(payload)
+      body:JSON.stringify(payload),
+      signal:ctrl?ctrl.signal:undefined
     })
     .then(function(res){
-      if(res.ok){
-        document.getElementById('form-view').style.display='none';
-        document.getElementById('success-view').style.display='block';
-        window.scrollTo({top:0,behavior:'smooth'});
-      } else {
-        errEl.style.display='block';
-        errEl.textContent='\u26a0  Error al enviar. Por favor intente de nuevo o llámenos al 385-437-6527.';
-        btn.disabled=false;
-        btn.textContent='Enviar Pedido \u2192';
-      }
+      return res.json().catch(function(){ return null; }).then(function(data){
+        if(timer) clearTimeout(timer);
+        // Only show success when Formspree returns 200 AND confirms with {"ok": true}
+        if(res.status===200 && data && data.ok===true){
+          document.getElementById('form-view').style.display='none';
+          document.getElementById('success-view').style.display='block';
+          window.scrollTo({top:0,behavior:'smooth'});
+        } else {
+          showFail('El servidor no confirmó el pedido (código '+res.status+').');
+        }
+      });
     })
     .catch(function(){
-      errEl.style.display='block';
-      errEl.textContent='\u26a0  Error de conexión. Verifique su internet e intente de nuevo.';
-      btn.disabled=false;
-      btn.textContent='Enviar Pedido \u2192';
+      if(timer) clearTimeout(timer);
+      showFail('Error de conexión. Verifique su internet.');
     });
   }
 
@@ -461,6 +515,7 @@
     document.getElementById('delivery-date').value='';
     ['wb3','wb4','wb5','wb6','wb8','wb12','edging','staples'].forEach(function(id){ document.getElementById(id).value=0; });
     document.getElementById('success-view').style.display='none';
+    document.getElementById('send-fail').style.display='none';
     document.getElementById('form-view').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }
